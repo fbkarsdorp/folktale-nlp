@@ -1,10 +1,13 @@
 package novels;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Vector;
 
+import com.sun.org.apache.xpath.internal.operations.Quo;
 import novels.annotators.CharacterAnnotator;
 import novels.annotators.CharacterFeatureAnnotator;
 import novels.annotators.CoreferenceAnnotator;
@@ -26,15 +29,19 @@ public class BookNLP {
 	private static final String femaleFile = "files/stanford/female.unigrams.txt";
 	private static final String maleFile = "files/stanford/male.unigrams.txt";
 	private static final String corefWeights = "files/coref.weights";
+	private static final String verbsOfCognitionFile = "files/verbs-of-cognition.txt";
+	private static final String word2Vectors = "files/vectors.bin";
+
 
 	public String weights = corefWeights;
+	public String vectors = word2Vectors;
 
 	/**
 	 * Annotate a book with characters, coreference and quotations
 	 * 
 	 * @param book
 	 */
-	public void process(Book book, File outputDirectory, String outputPrefix) {
+	public void process(Book book, File outputDirectory, String outputPrefix) throws IOException {
 		File charFile = new File(outputDirectory, outputPrefix + ".book");
 
 		process(book);
@@ -42,23 +49,30 @@ public class BookNLP {
 		QuotationAnnotator quoteFinder = new QuotationAnnotator();
 		quoteFinder.findQuotations(book);
 
+		for (Quotation quotation : book.quotations) {
+			book.tokens.get(quotation.attributionId).ner = "PERSON";
+		}
+		// rerun character detection with found speakers.
+		process(book);
+
 		CharacterFeatureAnnotator featureAnno = new CharacterFeatureAnnotator();
 		featureAnno.annotatePaths(book);
 		PrintUtil.printBookJson(book, charFile);
 
 	}
 
-	public void process(Book book) {
+	public void process(Book book) throws IOException {
 		SyntaxAnnotator.setDependents(book);
 
 		Dictionaries dicts = new Dictionaries();
 		dicts.readAnimate(animacyFile, genderFile, maleFile, femaleFile);
+		dicts.readCognitionVerbs(verbsOfCognitionFile);
 		dicts.processHonorifics(book.tokens);
 
 		CharacterAnnotator charFinder = new CharacterAnnotator();
 
 		charFinder.findCharacters(book, dicts);
-		charFinder.resolveCharacters(book, dicts);
+		charFinder.resolveCharacters(book, dicts, vectors);
 
 		PhraseAnnotator phraseFinder = new PhraseAnnotator();
 		phraseFinder.getPhrases(book, dicts);
@@ -91,6 +105,7 @@ public class BookNLP {
 		options.addOption("p", true, "output directory");
 		options.addOption("id", true, "book ID");
 		options.addOption("d", false, "dump pronoun and quotes for annotation");
+		options.addOption("v", true, "word2vec vector file.");
 
 		CommandLine cmd = null;
 		try {
@@ -102,82 +117,94 @@ public class BookNLP {
 
 		String outputDirectory = null;
 		String prefix = "book.id";
-		
-		if (!cmd.hasOption("p")) {
-			System.err.println("Specify output directory with -p <directory>");
-			System.exit(1);
+
+		File input = new File(cmd.getOptionValue("doc"));
+		File[] filenames = new File[1];
+		if (input.isDirectory()) {
+			filenames = input.listFiles();
 		} else {
-			outputDirectory = cmd.getOptionValue("p");
+			filenames[0] = new File(cmd.getOptionValue("doc"));
 		}
 
-		if (cmd.hasOption("id")) {
-			prefix = cmd.getOptionValue("id");
-		}
-
-		File directory = new File(outputDirectory);
-		directory.mkdirs();
-
-		String tokenFileString = null;
-		if (cmd.hasOption("tok")) {
-			tokenFileString = cmd.getOptionValue("tok");
-			File tokenDirectory = new File(tokenFileString).getParentFile();
-			tokenDirectory.mkdirs();
-		} else {
-			System.err.println("Specify token file with -tok <filename>");
-			System.exit(1);
-		}
-
-		options.addOption("printHtml", false,
-				"write HTML file with coreference links and speaker ID for inspection");
-
-		BookNLP bookNLP = new BookNLP();
-		// int docId = Integer.valueOf(cmd.getOptionValue("docId"));
-
-		// generate or read tokens
-		ArrayList<Token> tokens = null;
-		File tokenFile = new File(tokenFileString);
-		if (!tokenFile.exists() || cmd.hasOption("f")) {
-			String doc = cmd.getOptionValue("doc");
-			String text = Util.readText(doc);
-			text = Util.filterGutenberg(text);
-			SyntaxAnnotator syntaxAnnotator = new SyntaxAnnotator();
-			tokens = syntaxAnnotator.process(text);
-			System.out.println("Processing text");
-		} else {
-			if (tokenFile.exists()) {
-				System.out.println(String.format("%s exists...",
-						tokenFileString));
+		SyntaxAnnotator syntaxAnnotator = new SyntaxAnnotator();
+		for (File file: filenames) {
+			if (!(file.getName().endsWith(".txt"))) {
+				continue;
 			}
-			tokens = SyntaxAnnotator.readDoc(tokenFileString);
-			System.out.println("Using preprocessed tokens");
+			if (!cmd.hasOption("p")) {
+				System.err.println("Specify output directory with -p <directory>");
+				System.exit(1);
+			} else {
+				outputDirectory = cmd.getOptionValue("p");
+			}
+
+			prefix = file.getName() + ".id";
+
+			File directory = new File(outputDirectory);
+			directory.mkdirs();
+
+			String tokenFileString = null;
+			tokenFileString = file.getName() + ".tok";
+			File tokenDirectory = new File(tokenFileString).getParentFile();
+
+			options.addOption("printHtml", false,
+					"write HTML file with coreference links and speaker ID for inspection");
+
+			BookNLP bookNLP = new BookNLP();
+			// int docId = Integer.valueOf(cmd.getOptionValue("docId"));
+
+			// generate or read tokens
+			ArrayList<Token> tokens = null;
+			File tokenFile = new File(tokenFileString);
+			if (!tokenFile.exists() || cmd.hasOption("f")) {
+				String doc = file.getAbsolutePath();
+				String text = Util.readText(doc);
+				text = Util.filterGutenberg(text);
+				tokens = syntaxAnnotator.process(text);
+				System.out.println("Processing text");
+			} else {
+				if (tokenFile.exists()) {
+					System.out.println(String.format("%s exists...",
+							tokenFileString));
+				}
+				tokens = SyntaxAnnotator.readDoc(tokenFileString);
+				System.out.println("Using preprocessed tokens");
+			}
+
+			Book book = new Book(tokens);
+
+			if (cmd.hasOption("w")) {
+				bookNLP.weights = cmd.getOptionValue("w");
+				System.out.println(String.format("Using coref weights: ",
+						bookNLP.weights));
+			} else {
+				bookNLP.weights = BookNLP.corefWeights;
+				System.out.println("Using default coref weights");
+			}
+
+			if (cmd.hasOption("v")) {
+				bookNLP.vectors = cmd.getOptionValue("v");
+				System.out.println(String.format("Using vector file: ", bookNLP.vectors));
+			} else {
+				bookNLP.vectors = BookNLP.word2Vectors;
+				System.out.println("Using default vectors.");
+			}
+
+			book.id = prefix;
+			bookNLP.process(book, directory, prefix);
+
+			if (cmd.hasOption("printHTML")) {
+				File htmlOutfile = new File(directory, prefix + ".html");
+				PrintUtil.printWithLinksAndCorefAndQuotes(htmlOutfile, book);
+			}
+
+			if (cmd.hasOption("d")) {
+				System.out.println("Dumping for annotation");
+				bookNLP.dumpForAnnotation(book, directory, prefix);
+			}
+
+			// Print out tokens
+			PrintUtil.printTokens(book, tokenFileString);
 		}
-
-		Book book = new Book(tokens);
-
-		if (cmd.hasOption("w")) {
-			bookNLP.weights = cmd.getOptionValue("w");
-			System.out.println(String.format("Using coref weights: ",
-					bookNLP.weights));
-		} else {
-			bookNLP.weights = BookNLP.corefWeights;
-			System.out.println("Using default coref weights");
-		}
-
-		book.id = prefix;
-		bookNLP.process(book, directory, prefix);
-
-		if (cmd.hasOption("printHTML")) {
-			File htmlOutfile = new File(directory, prefix + ".html");
-			PrintUtil.printWithLinksAndCorefAndQuotes(htmlOutfile, book);
-		}
-
-		if (cmd.hasOption("d")) {
-			System.out.println("Dumping for annotation");
-			bookNLP.dumpForAnnotation(book, directory, prefix);
-		}
-
-		// Print out tokens
-		PrintUtil.printTokens(book, tokenFileString);
-
 	}
 }

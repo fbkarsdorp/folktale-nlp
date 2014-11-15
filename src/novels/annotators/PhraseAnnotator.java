@@ -42,6 +42,13 @@ public class PhraseAnnotator {
 			np.gender = dicts.genderUnigrams.get(word.word.toLowerCase());
 		}
 
+		// add method to find inanimate nouns preforming animate actions (especially speech action)
+		if (word.head != -1 && word.pos.startsWith("NN") &&
+			word.deprel.startsWith("nsubj") && dicts.verbsOfCognition.contains(book.tokens.get(word.head).lemma)) {
+			np.animate = true;
+			word.ner = "PERSON";
+		}
+
 		// immediate children
 		TreeSet<Integer> nextDeps = book.dependents.get(index);
 		TreeSet<Integer> full = new TreeSet<Integer>();

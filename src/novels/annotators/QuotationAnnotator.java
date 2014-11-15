@@ -2,6 +2,7 @@ package novels.annotators;
 
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 import novels.Book;
 import novels.Quotation;
@@ -19,6 +20,8 @@ import com.google.common.collect.Maps;
  */
 public class QuotationAnnotator {
 
+	private static String QUOTES = "“”‘’'`\"";
+
 	public void setQuotes(Book book) {
 		boolean inQuote=false;
 		int lastPar=-1;
@@ -29,7 +32,7 @@ public class QuotationAnnotator {
 				inQuote=false;
 			}
 			token.quotation=inQuote;
-			if (token.word.equals("''") || token.word.equals("``")) {
+			if (token.word.equals("''") || token.word.equals("``") || QUOTES.contains(token.word)) {
 				if (inQuote) {
 					Token start=book.tokens.get(lastStart);
 					start.lemma="``";
@@ -42,6 +45,7 @@ public class QuotationAnnotator {
 			
 		}
 	}
+
 	public void findQuotations(Book book) {
 
 		setQuotes(book);
@@ -63,9 +67,9 @@ public class QuotationAnnotator {
 
 		// find all quotations (delimited by `` '')
 		for (Token token : book.tokens) {
-			if (token.lemma.equals("``")) {
+			if (token.lemma.equals("``") || QUOTES.contains(token.lemma)) {
 				start = token.tokenId;
-			} else if (token.lemma.equals("''")) {
+			} else if (token.lemma.equals("''") || QUOTES.contains(token.lemma)) {
 				end = token.tokenId;
 
 				if (start > -1) {

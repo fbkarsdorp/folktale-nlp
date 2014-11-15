@@ -1,15 +1,13 @@
 package novels.annotators;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
-import novels.Book;
-import novels.BookCharacter;
-import novels.Dictionaries;
-import novels.Token;
+import novels.*;
 import novels.entities.CharacterToken;
 
 import com.google.common.collect.Lists;
@@ -176,6 +174,11 @@ public class CharacterAnnotator {
 
 	}
 
+	public HashSet<String> getNearestNeighbors(String name) {
+		HashSet<String> neighbors = Sets.newHashSet();
+		return neighbors;
+	}
+
 	/**
 	 * If any tokens match names (but aren't labeled as ner PERSON), label as
 	 * such. Not in use (not clear it helps and lots of noise).
@@ -252,7 +255,7 @@ public class CharacterAnnotator {
 	/*
 	 * Resolve ambiguous tokens (e.g., Tom) to the most recent seen character.
 	 */
-	public void resolveCharacters(Book book, Dictionaries dicts) {
+	public void resolveCharacters(Book book, Dictionaries dicts, String vectors) throws IOException {
 		int i = 0;
 
 		book.tokenToCharacter = Maps.newTreeMap();
@@ -316,6 +319,34 @@ public class CharacterAnnotator {
 			i++;
 
 		}
+
+//		double[][] characterNetwork = new double[book.characters.length][book.characters.length];
+//		Word2Vec word2Vec = new Word2Vec(vectors);
+//		for (int c1 = 0; c1 < book.characters.length; c1++) {
+//			for (int c2 = 0; c2 < c1; c2++) {
+//				String name1 = book.characters[c1].name;
+//				String name2 = book.characters[c2].name;
+//				if (word2Vec.wordMap.containsKey(name1) && word2Vec.wordMap.containsKey(name2)) {
+//					double similarity = word2Vec.similarity(name1, name2);
+//					characterNetwork[c1][c2] = similarity;
+//					characterNetwork[c2][c1] = similarity;
+//				}
+//			}
+//		}
+//
+//		for (int c1 = 0; c1 < book.characters.length; c1++) {
+//			double bestMatch = 0;
+//			int neighbor = -1;
+//			for (int c2 = 0; c2 < book.characters.length; c2++) {
+//				if (characterNetwork[c1][c2] > bestMatch) {
+//					bestMatch = characterNetwork[c1][c2];
+//					neighbor = c2;
+//				}
+//			}
+//			if (neighbor != -1) {
+//				System.out.println(book.characters[c1].name + " " + book.characters[neighbor].name + " " + bestMatch);
+//			}
+//		}
 
 		// After all the tokens have been assigned, calculate and save
 		// properties of the characters (like most frequent name).

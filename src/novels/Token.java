@@ -10,6 +10,7 @@ public class Token {
 	public String lemma;
 	public String ner;
 	public int gender;
+	public boolean animate=false;
 	public String pos;
 	public int head;
 	public String deprel;
@@ -21,6 +22,14 @@ public class Token {
 
 	public boolean isPersonOrOrg() {
 		return ner.equals("PERSON") || ner.equals("ORGANIZATION");
+	}
+
+	public boolean isAnimate() {
+		return animate && pos.startsWith("N"); // add animacy information
+	}
+
+	public boolean isSpeaker() {
+		return false; // add speaker information
 	}
 
 	public Token() {

@@ -20,6 +20,7 @@ public class Dictionaries {
 
 	public HashSet<String> animateUnigrams;
 	public HashMap<String, Integer> genderUnigrams;
+	public HashSet<String> verbsOfCognition;
 
 	public static int FEMALE = 1;
 	public static int MALE = 2;
@@ -138,9 +139,27 @@ public class Dictionaries {
 				} else if (generalHonorifics.contains(token.word.toLowerCase())) {
 					token.ner = "PERSON";
 				}
+			// set animate non-PERSON nouns to PERSON; we'll deal with in-animate characters later
+			} else if (animateUnigrams.contains(token.word.toLowerCase()) && token.pos.startsWith("NN")) {
+					token.ner = "PERSON";
 			}
+	    }
+	}
+
+	public void readCognitionVerbs(String infile) {
+		verbsOfCognition = new HashSet<String>();
+		try {
+			BufferedReader in1 = new BufferedReader(new InputStreamReader(
+					new FileInputStream(infile), "UTF-8"));
+			String str1;
+			while ((str1 = in1.readLine()) != null) {
+				verbsOfCognition.add(str1.trim());
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
+
 	public void readAnimate(String infile, String genderFile, String maleFile, String femaleFile) {
 		animateUnigrams = new HashSet<String>();
 		try {

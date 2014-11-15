@@ -1,9 +1,15 @@
 #!/bin/sh
 
 # add all the jars anywhere in the lib/ directory to our classpath
-here=$(dirname $0)
-CLASSES=$here/bin
-CLASSES=$CLASSES:$(echo $here/lib/*.jar | tr ' ' :)
-CLASSES=$CLASSES:$here/book-nlp.jar
 
-java -XX:ParallelGCThreads=2 -Xmx3000m -ea -classpath $CLASSES $*
+# outputdir=/Users/folgert/Dropbox/stories/data/btjerusalem.com/
+# for fn in /Users/folgert/Dropbox/stories/data/btjerusalem.com/*.txt
+#   do
+    # filename=$(basename $fn) 
+    here=$(dirname $0)
+    CLASSES=$here/bin
+    CLASSES=$CLASSES:$(echo $here/lib/*.jar | tr ' ' :)
+    CLASSES=$CLASSES:$here/book-nlp.jar
+    java -XX:ParallelGCThreads=8 -Xmx3000m -ea -classpath $CLASSES $*
+    # java -XX:ParallelGCThreads=8 -Xmx3000m -ea -classpath $CLASSES novels/BookNLP -docId $filename -id $filename -doc $outputdir$filename -printHTML -p $outputdir -tok $outputdir$filename.tok -f
+# done
