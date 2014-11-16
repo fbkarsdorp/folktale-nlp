@@ -128,7 +128,8 @@ public class BookNLP {
 
 		SyntaxAnnotator syntaxAnnotator = new SyntaxAnnotator();
 		for (File file: filenames) {
-			if (!(file.getName().endsWith(".txt"))) {
+			File tokFile = new File(file.getName() + ".tok");
+			if (!(file.getName().endsWith(".txt")) || tokFile.exists()) {
 				continue;
 			}
 			if (!cmd.hasOption("p")) {
@@ -191,20 +192,24 @@ public class BookNLP {
 			}
 
 			book.id = prefix;
-			bookNLP.process(book, directory, prefix);
+			try {
+				bookNLP.process(book, directory, prefix);
 
-			if (cmd.hasOption("printHTML")) {
-				File htmlOutfile = new File(directory, prefix + ".html");
-				PrintUtil.printWithLinksAndCorefAndQuotes(htmlOutfile, book);
+				if (cmd.hasOption("printHTML")) {
+					File htmlOutfile = new File(directory, prefix + ".html");
+					PrintUtil.printWithLinksAndCorefAndQuotes(htmlOutfile, book);
+				}
+
+				if (cmd.hasOption("d")) {
+					System.out.println("Dumping for annotation");
+					bookNLP.dumpForAnnotation(book, directory, prefix);
+				}
+
+				// Print out tokens
+				PrintUtil.printTokens(book, tokenFileString);
+			} catch (Exception e) {
+				continue;
 			}
-
-			if (cmd.hasOption("d")) {
-				System.out.println("Dumping for annotation");
-				bookNLP.dumpForAnnotation(book, directory, prefix);
-			}
-
-			// Print out tokens
-			PrintUtil.printTokens(book, tokenFileString);
 		}
 	}
 }
